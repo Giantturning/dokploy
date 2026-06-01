@@ -25,7 +25,9 @@ import { ShowZeroDowntime } from "@/components/dashboard/application/advanced/sh
 import { ShowTraefikConfig } from "@/components/dashboard/application/advanced/traefik/show-traefik-config";
 import { ShowVolumes } from "@/components/dashboard/application/advanced/volumes/show-volumes";
 import { ShowDeployments } from "@/components/dashboard/application/deployments/show-deployments";
+import { ShowSnapshotSettings } from "@/components/dashboard/application/deployments/show-snapshot-settings";
 import { ShowDomains } from "@/components/dashboard/application/domains/show-domains";
+import { ShowTailscaleAccess } from "@/components/dashboard/application/domains/show-tailscale-access";
 import { ShowEnvironment } from "@/components/dashboard/application/environment/show";
 import { ShowGeneralApplication } from "@/components/dashboard/application/general/show";
 import { ShowIconSettings } from "@/components/dashboard/application/icon/show-icon-settings";
@@ -366,13 +368,16 @@ const Service = (
 									)}
 									{permissions?.deployment.read && (
 										<TabsContent value="deployments" className="w-full pt-2.5">
-											<div className="flex flex-col gap-4 border rounded-lg">
-												<ShowDeployments
-													id={applicationId}
-													type="application"
-													serverId={data?.serverId || ""}
-													refreshToken={data?.refreshToken || ""}
-												/>
+											<div className="flex flex-col gap-4">
+												<ShowSnapshotSettings applicationId={applicationId} />
+												<div className="border rounded-lg">
+													<ShowDeployments
+														id={applicationId}
+														type="application"
+														serverId={data?.serverId || ""}
+														refreshToken={data?.refreshToken || ""}
+													/>
+												</div>
 											</div>
 										</TabsContent>
 									)}
@@ -400,6 +405,7 @@ const Service = (
 									{permissions?.domain.read && (
 										<TabsContent value="domains" className="w-full">
 											<div className="flex flex-col gap-4 pt-2.5">
+												<ShowTailscaleAccess applicationId={applicationId} />
 												<ShowDomains id={applicationId} type="application" />
 											</div>
 										</TabsContent>

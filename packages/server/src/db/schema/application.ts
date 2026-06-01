@@ -52,6 +52,8 @@ import {
 } from "./shared";
 import { sshKeys } from "./ssh-key";
 import { APP_NAME_MESSAGE, APP_NAME_REGEX, generateAppName } from "./utils";
+export const accessMode = pgEnum("accessMode", ["public", "tailscale", "both"]);
+
 export const sourceType = pgEnum("sourceType", [
 	"docker",
 	"git",
@@ -114,6 +116,10 @@ export const applications = pgTable("application", {
 	logMaxSize: text("logMaxSize"),
 	logMaxFiles: text("logMaxFiles"),
 	zeroDowntime: boolean("zeroDowntime").default(true),
+	accessMode: accessMode("accessMode").default("public"),
+	tailscaleHostname: text("tailscaleHostname"),
+	tailscalePort: integer("tailscalePort").default(3000),
+	snapshotBeforeDeploy: boolean("snapshotBeforeDeploy").default(false),
 	title: text("title"),
 	enabled: boolean("enabled"),
 	subtitle: text("subtitle"),
@@ -318,6 +324,10 @@ const createSchema = createInsertSchema(applications, {
 	logMaxSize: z.string().optional().nullable(),
 	logMaxFiles: z.string().optional().nullable(),
 	zeroDowntime: z.boolean().optional(),
+	accessMode: z.enum(["public", "tailscale", "both"]).optional(),
+	tailscaleHostname: z.string().optional().nullable(),
+	tailscalePort: z.number().int().min(1).max(65535).optional().nullable(),
+	snapshotBeforeDeploy: z.boolean().optional(),
 	title: z.string().optional(),
 	enabled: z.boolean().optional(),
 	subtitle: z.string().optional(),
