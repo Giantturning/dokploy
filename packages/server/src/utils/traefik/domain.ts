@@ -1,4 +1,5 @@
 import type { Domain } from "@dokploy/server/services/domain";
+import { getWebServerSettings } from "@dokploy/server/services/web-server-settings";
 import type { ApplicationNested } from "../builders";
 import {
 	createServiceConfig,
@@ -25,6 +26,13 @@ export const manageDomain = async (app: ApplicationNested, domain: Domain) => {
 	const routerName = `${appName}-router-${domain.uniqueConfigKey}`;
 	const routerNameSecure = `${appName}-router-websecure-${domain.uniqueConfigKey}`;
 
+	// Resolve VPN subnet for IP-binding restriction
+	let vpnSubnet: string | null | undefined;
+	if (app.accessMode === "tailscale") {
+		const settings = await getWebServerSettings();
+		vpnSubnet = settings?.vpnSubnet;
+	}
+
 	config.http = config.http || { routers: {}, services: {} };
 	config.http.routers = config.http.routers || {};
 	config.http.services = config.http.services || {};
@@ -33,6 +41,7 @@ export const manageDomain = async (app: ApplicationNested, domain: Domain) => {
 		app,
 		domain,
 		domain.customEntrypoint || "web",
+		vpnSubnet,
 	);
 
 	if (!domain.customEntrypoint && domain.https) {
@@ -40,6 +49,7 @@ export const manageDomain = async (app: ApplicationNested, domain: Domain) => {
 			app,
 			domain,
 			"websecure",
+			vpnSubnet,
 		);
 	} else {
 		delete config.http.routers[routerNameSecure];
@@ -48,6 +58,20 @@ export const manageDomain = async (app: ApplicationNested, domain: Domain) => {
 	config.http.services[serviceName] = createServiceConfig(appName, domain);
 
 	await createPathMiddlewares(app, domain);
+
+	// Define (or remove) the per-app VPN-restrict middleware
+	const vpnMiddlewareName = `vpn-only-${appName}`;
+	config.http.middlewares = config.http.middlewares || {};
+	if (vpnSubnet) {
+		config.http.middlewares[vpnMiddlewareName] = {
+			ipWhiteList: { sourceRange: [vpnSubnet] },
+		};
+	} else {
+		delete config.http.middlewares[vpnMiddlewareName];
+	}
+	if (Object.keys(config.http.middlewares).length === 0) {
+		delete config.http.middlewares;
+	}
 
 	if (app.serverId) {
 		await writeTraefikConfigRemote(config, appName, app.serverId);
@@ -122,6 +146,7 @@ export const createRouterConfig = async (
 	app: ApplicationNested,
 	domain: Domain,
 	entryPoint: string,
+	vpnSubnet?: string | null,
 ) => {
 	const { appName, redirects, security } = app;
 	const { certificateType } = domain;
@@ -187,6 +212,11 @@ export const createRouterConfig = async (
 		// custom middlewares from domain
 		if (domain.middlewares && domain.middlewares.length > 0) {
 			routerConfig.middlewares?.push(...domain.middlewares);
+		}
+
+		// VPN-only IP restriction
+		if (vpnSubnet) {
+			routerConfig.middlewares?.push(`vpn-only-${appName}`);
 		}
 	}
 

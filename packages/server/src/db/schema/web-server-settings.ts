@@ -19,8 +19,9 @@ export const webServerSettings = pgTable("webServerSettings", {
 	sshPrivateKey: text("sshPrivateKey"),
 	enableDockerCleanup: boolean("enableDockerCleanup").notNull().default(true),
 	logCleanupCron: text("logCleanupCron").default("0 0 * * *"),
-	// Tailscale
-	tailscaleAuthKey: text("tailscaleAuthKey"),
+	// VPN IP Binding
+	vpnInterface: text("vpnInterface"),
+	vpnSubnet: text("vpnSubnet"),
 	// Metrics Configuration
 	metricsConfig: jsonb("metricsConfig")
 		.$type<{
@@ -134,7 +135,8 @@ export const apiUpdateWebServerSettings = createSchema.partial().extend({
 	sshPrivateKey: z.string().optional(),
 	enableDockerCleanup: z.boolean().optional(),
 	logCleanupCron: z.string().optional().nullable(),
-	tailscaleAuthKey: z.string().optional().nullable(),
+	vpnInterface: z.string().optional().nullable(),
+	vpnSubnet: z.string().optional().nullable(),
 	metricsConfig: z
 		.object({
 			server: z.object({

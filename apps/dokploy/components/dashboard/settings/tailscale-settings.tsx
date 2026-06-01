@@ -1,6 +1,12 @@
-import { CheckCircle2, ExternalLink, Eye, EyeOff, Shield } from "lucide-react";
-import { useState } from "react";
+import {
+	CheckCircle2,
+	Loader2,
+	RefreshCw,
+	Shield,
+	Wifi,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -9,147 +15,203 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { api } from "@/utils/api";
 
+const VPN_TYPE_LABEL: Record<string, string> = {
+	tailscale: "Tailscale",
+	wireguard: "WireGuard",
+	zerotier: "ZeroTier",
+	openvpn: "OpenVPN",
+	unknown: "VPN",
+};
+
 export const TailscaleSettings = () => {
-	const [authKey, setAuthKey] = useState("");
-	const [showKey, setShowKey] = useState(false);
+	const { data: vpnSettings, refetch: refetchSettings } =
+		api.vpn.getSettings.useQuery();
 
-	const { data, refetch } = api.tailscale.getSettings.useQuery();
-	const { mutateAsync: save, isPending: isSaving } =
-		api.tailscale.saveAuthKey.useMutation();
-	const { mutateAsync: clear, isPending: isClearing } =
-		api.tailscale.clearAuthKey.useMutation();
+	const {
+		data: detectedInterfaces,
+		isFetching: isDetecting,
+		refetch: refetchInterfaces,
+	} = api.vpn.detectInterfaces.useQuery(
+		{ serverId: undefined },
+		{ staleTime: 30_000 },
+	);
 
-	const handleSave = async () => {
-		if (!authKey.trim()) return;
-		await save({ authKey: authKey.trim() })
+	const { mutateAsync: saveVpnInterface, isPending: isSaving } =
+		api.vpn.saveVpnInterface.useMutation();
+
+	const { mutateAsync: clearVpnInterface, isPending: isClearing } =
+		api.vpn.clearVpnInterface.useMutation();
+
+	const handleSelect = async (iface: { name: string; subnet: string }) => {
+		await saveVpnInterface({ vpnInterface: iface.name, vpnSubnet: iface.subnet })
 			.then(async () => {
-				setAuthKey("");
-				toast.success("Tailscale auth key saved");
-				await refetch();
+				toast.success(`VPN interface "${iface.name}" saved`);
+				await refetchSettings();
 			})
-			.catch(() => toast.error("Failed to save auth key"));
+			.catch(() => toast.error("Failed to save VPN interface"));
 	};
 
 	const handleClear = async () => {
-		await clear()
+		await clearVpnInterface()
 			.then(async () => {
-				toast.success("Tailscale auth key removed");
-				await refetch();
+				toast.success("VPN interface cleared");
+				await refetchSettings();
 			})
-			.catch(() => toast.error("Failed to remove auth key"));
+			.catch(() => toast.error("Failed to clear"));
 	};
+
+	const hasVpn = !!(vpnSettings?.vpnInterface && vpnSettings?.vpnSubnet);
 
 	return (
 		<Card className="bg-background">
 			<CardHeader>
 				<div className="flex items-center gap-2">
 					<Shield className="size-5" />
-					<CardTitle className="text-xl">Tailscale</CardTitle>
+					<CardTitle className="text-xl">VPN IP Binding</CardTitle>
 				</div>
 				<CardDescription>
-					Configure your Tailscale auth key to enable Tailscale sidecar
-					containers for your applications.
+					Dokploy detects VPN interfaces already running on this host (Tailscale,
+					WireGuard, ZeroTier, OpenVPN). Select one to enable VPN-only access for
+					your apps.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-6">
-				{/* Status */}
+				{/* Current status */}
 				<div
 					className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-						data?.authKeySet
+						hasVpn
 							? "border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 text-green-800 dark:text-green-200"
 							: "border-border bg-muted/30 text-muted-foreground"
 					}`}
 				>
 					<div
-						className={`size-2 rounded-full ${data?.authKeySet ? "bg-green-500" : "bg-gray-400"}`}
+						className={`size-2 rounded-full shrink-0 ${hasVpn ? "bg-green-500" : "bg-gray-400"}`}
 					/>
-					{data?.authKeySet ? (
+					{hasVpn ? (
 						<>
-							<CheckCircle2 className="size-4" />
-							Auth key configured
+							<CheckCircle2 className="size-4 shrink-0" />
+							<span>
+								Interface <strong>{vpnSettings.vpnInterface}</strong> bound —{" "}
+								<code className="text-xs">{vpnSettings.vpnSubnet}</code>
+							</span>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="ml-auto h-6 px-2 text-xs"
+								onClick={handleClear}
+								disabled={isClearing}
+							>
+								{isClearing ? (
+									<Loader2 className="size-3 animate-spin" />
+								) : (
+									"Clear"
+								)}
+							</Button>
 						</>
 					) : (
-						"No auth key configured"
+						"No VPN interface configured"
 					)}
 				</div>
 
-				{/* Auth key input */}
+				{/* Detected interfaces */}
 				<div className="flex flex-col gap-2">
-					<Label htmlFor="ts-auth-key">
-						{data?.authKeySet ? "Replace auth key" : "Auth key"}
-					</Label>
-					<div className="flex gap-2">
-						<div className="relative flex-1">
-							<Input
-								id="ts-auth-key"
-								type={showKey ? "text" : "password"}
-								value={authKey}
-								onChange={(e) => setAuthKey(e.target.value)}
-								placeholder="tskey-auth-..."
-								className="pr-10"
-							/>
-							<button
-								type="button"
-								className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-								onClick={() => setShowKey((p) => !p)}
-							>
-								{showKey ? (
-									<EyeOff className="size-4" />
-								) : (
-									<Eye className="size-4" />
-								)}
-							</button>
-						</div>
+					<div className="flex items-center justify-between">
+						<p className="text-sm font-medium">Detected interfaces</p>
 						<Button
-							onClick={handleSave}
-							disabled={isSaving || !authKey.trim()}
-							isLoading={isSaving}
+							variant="ghost"
+							size="sm"
+							onClick={() => refetchInterfaces()}
+							disabled={isDetecting}
 						>
-							Save
+							{isDetecting ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : (
+								<RefreshCw className="size-4" />
+							)}
+							<span className="ml-1 text-xs">Scan</span>
 						</Button>
-						{data?.authKeySet && (
-							<Button
-								variant="destructive"
-								onClick={handleClear}
-								disabled={isClearing}
-								isLoading={isClearing}
-							>
-								Remove
-							</Button>
-						)}
 					</div>
-					<p className="text-xs text-muted-foreground">
-						Generate a reusable auth key at{" "}
-						<a
-							href="https://login.tailscale.com/admin/settings/keys"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="text-blue-600 hover:underline inline-flex items-center gap-1"
-						>
-							tailscale.com/admin/settings/keys
-							<ExternalLink className="size-3" />
-						</a>
-						. Use an ephemeral key for dynamic sidecars.
-					</p>
+
+					{isDetecting ? (
+						<p className="text-sm text-muted-foreground">Scanning…</p>
+					) : detectedInterfaces && detectedInterfaces.length > 0 ? (
+						<div className="flex flex-col gap-2">
+							{detectedInterfaces.map((iface) => {
+								const isActive = vpnSettings?.vpnInterface === iface.name;
+								return (
+									<div
+										key={iface.name}
+										className={`flex items-center justify-between rounded-lg border p-3 ${
+											isActive
+												? "border-primary bg-primary/5"
+												: "border-border bg-muted/20"
+										}`}
+									>
+										<div className="flex items-center gap-3">
+											<Wifi className="size-4 text-muted-foreground shrink-0" />
+											<div>
+												<p className="text-sm font-medium">
+													{iface.name}
+													<Badge variant="secondary" className="ml-2 text-xs">
+														{VPN_TYPE_LABEL[iface.type] ?? iface.type}
+													</Badge>
+												</p>
+												<p className="text-xs text-muted-foreground">
+													IP {iface.ip} — subnet{" "}
+													<code className="text-xs">{iface.subnet}</code>
+												</p>
+											</div>
+										</div>
+										{isActive ? (
+											<Badge variant="default" className="text-xs">
+												Active
+											</Badge>
+										) : (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isSaving}
+												onClick={() => handleSelect(iface)}
+											>
+												{isSaving ? (
+													<Loader2 className="size-4 animate-spin" />
+												) : (
+													"Use this"
+												)}
+											</Button>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					) : (
+						<div className="rounded-lg border border-dashed p-4 text-center">
+							<p className="text-sm text-muted-foreground">
+								No VPN interfaces detected.
+							</p>
+							<p className="text-xs text-muted-foreground mt-1">
+								Install Tailscale, WireGuard, ZeroTier, or OpenVPN on this host,
+								then click Scan.
+							</p>
+						</div>
+					)}
 				</div>
 
 				{/* How it works */}
 				<div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2 text-sm">
-					<p className="font-medium">How Tailscale sidecars work</p>
+					<p className="font-medium">How VPN IP binding works</p>
 					<ol className="list-decimal list-inside text-muted-foreground flex flex-col gap-1 text-xs">
-						<li>Set your auth key here (once, globally)</li>
+						<li>Install your VPN client on this host (Tailscale, WireGuard…)</li>
+						<li>Click "Scan" — Dokploy detects the VPN interface automatically</li>
+						<li>Click "Use this" to save the interface and subnet</li>
 						<li>
-							Go to any Application → Domains → Access Mode → select
-							"Tailscale only" or "Public + Tailscale"
+							On any Application → Domains → set Access Mode to "VPN only"
 						</li>
-						<li>Click "Start sidecar" or redeploy</li>
 						<li>
-							App becomes reachable as{" "}
-							<code>appname.tailnet.ts.net</code> in your Tailnet
+							Traefik automatically restricts that app to your VPN subnet — no
+							public access
 						</li>
 					</ol>
 				</div>

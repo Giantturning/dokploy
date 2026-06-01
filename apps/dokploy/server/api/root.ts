@@ -46,7 +46,7 @@ import { sshRouter } from "./routers/ssh-key";
 import { stripeRouter } from "./routers/stripe";
 import { swarmRouter } from "./routers/swarm";
 import { tagRouter } from "./routers/tag";
-import { tailscaleRouter } from "./routers/tailscale";
+import { vpnRouter } from "./routers/vpn";
 import { userRouter } from "./routers/user";
 import { volumeBackupsRouter } from "./routers/volume-backups";
 /**
@@ -104,7 +104,7 @@ export const appRouter = createTRPCRouter({
 	volumeBackups: volumeBackupsRouter,
 	environment: environmentRouter,
 	tag: tagRouter,
-	tailscale: tailscaleRouter,
+	vpn: vpnRouter,
 	patch: patchRouter,
 });
 

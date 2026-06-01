@@ -11,7 +11,7 @@ export * from "./services/admin";
 export * from "./services/adminer";
 export * from "./services/application";
 export * from "./services/pre-deploy-snapshot";
-export * from "./services/tailscale";
+export * from "./services/vpn-detection";
 export * from "./services/backup";
 export * from "./services/bitbucket";
 export * from "./services/certificate";

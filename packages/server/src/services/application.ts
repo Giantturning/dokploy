@@ -99,12 +99,6 @@ import {
 	updatePreviewDeployment,
 } from "./preview-deployment";
 import { validUniqueServerAppName } from "./project";
-import {
-	isTailscaleSidecarRunning,
-	startTailscaleSidecar,
-	stopTailscaleSidecar,
-} from "./tailscale";
-import { getWebServerSettings } from "./web-server-settings";
 export type Application = typeof applications.$inferSelect;
 
 export const createApplication = async (
@@ -283,31 +277,6 @@ export const deployApplication = async ({
 			await execAsyncRemote(serverId, commandWithLog);
 		} else {
 			await execAsync(commandWithLog);
-		}
-
-		// For "tailscale" mode: remove Traefik config; for "public": stop sidecar
-		const mode = application.accessMode ?? "public";
-		if (mode === "tailscale" || mode === "both") {
-			const settings = await getWebServerSettings();
-			const authKey = settings?.tailscaleAuthKey;
-			if (authKey) {
-				const alreadyRunning = await isTailscaleSidecarRunning(
-					application.appName,
-					serverId,
-				);
-				if (!alreadyRunning) {
-					await startTailscaleSidecar({
-						appName: application.appName,
-						authKey,
-						hostname: application.tailscaleHostname,
-						targetPort: application.tailscalePort,
-						serverId,
-					});
-				}
-			}
-		} else {
-			// public-only: stop sidecar if accidentally running
-			await stopTailscaleSidecar(application.appName, serverId);
 		}
 
 		await mechanizeDockerContainer(application);
