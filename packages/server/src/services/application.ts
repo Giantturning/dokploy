@@ -32,6 +32,53 @@ import { eq } from "drizzle-orm";
 import type { z } from "zod";
 import { encodeBase64 } from "../utils/docker/utils";
 import { getDokployUrl } from "./admin";
+
+const verifyDeploymentHealth = async (
+	domains: Domain[],
+	logPath: string,
+	serverId?: string | null,
+): Promise<boolean> => {
+	const exec = (cmd: string) =>
+		serverId ? execAsyncRemote(serverId, cmd) : execAsync(cmd);
+
+	const primaryDomain = domains.find((d) => d.https) || domains[0];
+	if (!primaryDomain) return true;
+
+	const scheme = primaryDomain.https ? "https" : "http";
+	const url = `${scheme}://${primaryDomain.host}`;
+
+	await exec(
+		`echo "\\n🔍 Zero-downtime: verifying health at ${url} ..." >> "${logPath}"`,
+	);
+
+	for (let attempt = 1; attempt <= 12; attempt++) {
+		await new Promise((r) => setTimeout(r, 5000));
+		try {
+			const { stdout } = await exec(
+				`curl -sk -o /dev/null -w "%{http_code}" --max-time 5 "${url}" || echo "000"`,
+			);
+			const code = stdout.trim();
+			if (code.startsWith("2") || code.startsWith("3")) {
+				await exec(
+					`echo "✅ Health check passed (HTTP ${code}) after ${attempt * 5}s" >> "${logPath}"`,
+				);
+				return true;
+			}
+			await exec(
+				`echo "⏳ Attempt ${attempt}/12 — HTTP ${code}, retrying..." >> "${logPath}"`,
+			);
+		} catch {
+			await exec(
+				`echo "⏳ Attempt ${attempt}/12 — no response, retrying..." >> "${logPath}"`,
+			);
+		}
+	}
+
+	await exec(
+		`echo "\\n⚠️  Health check timed out after 60s. Container may still be starting." >> "${logPath}"`,
+	);
+	return false;
+};
 import {
 	createDeployment,
 	createDeploymentPreview,
@@ -222,6 +269,15 @@ export const deployApplication = async ({
 		}
 
 		await mechanizeDockerContainer(application);
+
+		if (application.zeroDowntime && application.domains.length > 0) {
+			await verifyDeploymentHealth(
+				application.domains,
+				deployment.logPath,
+				serverId,
+			);
+		}
+
 		await updateDeploymentStatus(deployment.deploymentId, "done");
 		await updateApplicationStatus(applicationId, "done");
 

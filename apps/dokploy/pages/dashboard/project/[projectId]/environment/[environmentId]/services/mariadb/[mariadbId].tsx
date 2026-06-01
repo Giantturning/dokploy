@@ -16,6 +16,7 @@ import { ShowEnvironment } from "@/components/dashboard/application/environment/
 import { ShowDockerLogs } from "@/components/dashboard/application/logs/show";
 import { DeleteService } from "@/components/dashboard/compose/delete-service";
 import { ShowBackups } from "@/components/dashboard/database/backups/show-backups";
+import { ShowAdminer } from "@/components/dashboard/database/show-adminer";
 import { ShowExternalMariadbCredentials } from "@/components/dashboard/mariadb/general/show-external-mariadb-credentials";
 import { ShowGeneralMariadb } from "@/components/dashboard/mariadb/general/show-general-mariadb";
 import { ShowInternalMariadbCredentials } from "@/components/dashboard/mariadb/general/show-internal-mariadb-credentials";
@@ -311,6 +312,11 @@ const Mariadb = (
 									{permissions?.service.create && (
 										<TabsContent value="advanced">
 											<div className="flex flex-col gap-4 pt-2.5">
+												<ShowAdminer
+													resourceId={mariadbId}
+													type="mariadb"
+													serverId={data?.serverId}
+												/>
 												<ShowDatabaseAdvancedSettings
 													id={mariadbId}
 													type="mariadb"

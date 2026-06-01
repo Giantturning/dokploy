@@ -6,6 +6,7 @@ import {
 	containerStop,
 	findServerById,
 	getConfig,
+	getContainerStatsByAppName,
 	getContainers,
 	getContainersByAppLabel,
 	getContainersByAppNameMatch,
@@ -297,5 +298,19 @@ export const dockerRouter = createTRPCRouter({
 			);
 
 			return { success: true, message: "File uploaded successfully" };
+		}),
+
+	getAppResourceUsage: withPermission("docker", "read")
+		.input(
+			z.object({
+				appName: z.string().min(1).max(200),
+				serverId: z.string().optional(),
+			}),
+		)
+		.query(async ({ input }) => {
+			return await getContainerStatsByAppName(
+				input.appName,
+				input.serverId ?? null,
+			);
 		}),
 });

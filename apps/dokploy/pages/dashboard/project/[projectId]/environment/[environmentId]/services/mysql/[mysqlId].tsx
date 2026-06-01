@@ -16,6 +16,7 @@ import { ShowEnvironment } from "@/components/dashboard/application/environment/
 import { ShowDockerLogs } from "@/components/dashboard/application/logs/show";
 import { DeleteService } from "@/components/dashboard/compose/delete-service";
 import { ShowBackups } from "@/components/dashboard/database/backups/show-backups";
+import { ShowAdminer } from "@/components/dashboard/database/show-adminer";
 import { ContainerFreeMonitoring } from "@/components/dashboard/monitoring/free/container/show-free-container-monitoring";
 import { ContainerPaidMonitoring } from "@/components/dashboard/monitoring/paid/container/show-paid-container-monitoring";
 import { ShowExternalMysqlCredentials } from "@/components/dashboard/mysql/general/show-external-mysql-credentials";
@@ -292,6 +293,11 @@ const MySql = (
 										{permissions?.service.create && (
 											<TabsContent value="advanced">
 												<div className="flex flex-col gap-4 pt-2.5">
+													<ShowAdminer
+														resourceId={mysqlId}
+														type="mysql"
+														serverId={data?.serverId}
+													/>
 													<ShowDatabaseAdvancedSettings
 														id={mysqlId}
 														type="mysql"

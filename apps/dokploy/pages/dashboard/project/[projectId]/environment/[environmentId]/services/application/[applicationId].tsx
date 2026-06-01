@@ -16,9 +16,12 @@ import { ShowClusterSettings } from "@/components/dashboard/application/advanced
 import { AddCommand } from "@/components/dashboard/application/advanced/general/add-command";
 import { ShowPorts } from "@/components/dashboard/application/advanced/ports/show-port";
 import { ShowRedirects } from "@/components/dashboard/application/advanced/redirects/show-redirects";
+import { ResourceGuard } from "@/components/dashboard/application/advanced/resource-guard";
 import { ShowSecurity } from "@/components/dashboard/application/advanced/security/show-security";
 import { ShowBuildServer } from "@/components/dashboard/application/advanced/show-build-server";
+import { ShowLogRetention } from "@/components/dashboard/application/advanced/show-log-retention";
 import { ShowResources } from "@/components/dashboard/application/advanced/show-resources";
+import { ShowZeroDowntime } from "@/components/dashboard/application/advanced/show-zero-downtime";
 import { ShowTraefikConfig } from "@/components/dashboard/application/advanced/traefik/show-traefik-config";
 import { ShowVolumes } from "@/components/dashboard/application/advanced/volumes/show-volumes";
 import { ShowDeployments } from "@/components/dashboard/application/deployments/show-deployments";
@@ -415,7 +418,15 @@ const Service = (
 													type="application"
 												/>
 												<ShowBuildServer applicationId={applicationId} />
+												<ResourceGuard
+													appName={data?.appName || ""}
+													serverId={data?.serverId}
+													memoryLimit={data?.memoryLimit}
+													cpuLimit={data?.cpuLimit}
+												/>
 												<ShowResources id={applicationId} type="application" />
+												<ShowZeroDowntime applicationId={applicationId} />
+												<ShowLogRetention applicationId={applicationId} />
 												<ShowVolumes id={applicationId} type="application" />
 												<ShowRedirects applicationId={applicationId} />
 												<ShowSecurity applicationId={applicationId} />

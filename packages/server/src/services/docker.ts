@@ -655,6 +655,39 @@ export const getAllContainerStats = async (serverId?: string) => {
 	}
 };
 
+export const getContainerStatsByAppName = async (
+	appName: string,
+	serverId?: string | null,
+) => {
+	const exec = (cmd: string) =>
+		serverId ? execAsyncRemote(serverId, cmd) : execAsync(cmd);
+
+	const idResult = await exec(
+		`docker ps -q --filter "name=^${appName}" | head -1`,
+	);
+	const containerId = idResult.stdout.trim();
+
+	if (!containerId) {
+		return null;
+	}
+
+	const command = `docker stats --no-stream --format '{"CPUPerc":"{{.CPUPerc}}","MemUsage":"{{.MemUsage}}","MemPerc":"{{.MemPerc}}","NetIO":"{{.NetIO}}","BlockIO":"{{.BlockIO}}","PIDs":"{{.PIDs}}"}' ${containerId}`;
+	try {
+		const result = await exec(command);
+		if (!result.stdout.trim()) return null;
+		return JSON.parse(result.stdout.trim()) as {
+			CPUPerc: string;
+			MemUsage: string;
+			MemPerc: string;
+			NetIO: string;
+			BlockIO: string;
+			PIDs: string;
+		};
+	} catch {
+		return null;
+	}
+};
+
 const destinationPathRegex = /^[a-zA-Z0-9.\-_/]+$/;
 
 export const uploadFileToContainer = async (

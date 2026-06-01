@@ -1,5 +1,6 @@
 import { createTRPCRouter } from "../api/trpc";
 import { adminRouter } from "./routers/admin";
+import { adminerRouter } from "./routers/adminer";
 import { aiRouter } from "./routers/ai";
 import { applicationRouter } from "./routers/application";
 import { backupRouter } from "./routers/backup";
@@ -55,6 +56,7 @@ import { volumeBackupsRouter } from "./routers/volume-backups";
 
 export const appRouter = createTRPCRouter({
 	admin: adminRouter,
+	adminer: adminerRouter,
 	application: applicationRouter,
 	backup: backupRouter,
 	bitbucket: bitbucketRouter,

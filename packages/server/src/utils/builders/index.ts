@@ -88,6 +88,8 @@ export const mechanizeDockerContainer = async (
 		command,
 		args,
 		ports,
+		logMaxSize,
+		logMaxFiles,
 	} = application;
 
 	const resources = calculateResources({
@@ -152,6 +154,17 @@ export const mechanizeDockerContainer = async (
 			Resources: {
 				...resources,
 			},
+			...(logMaxSize || logMaxFiles
+				? {
+						LogDriver: {
+							Name: "json-file",
+							Options: {
+								...(logMaxSize ? { "max-size": logMaxSize } : {}),
+								...(logMaxFiles ? { "max-file": logMaxFiles } : {}),
+							},
+						},
+					}
+				: {}),
 		},
 		Mode,
 		RollbackConfig,
