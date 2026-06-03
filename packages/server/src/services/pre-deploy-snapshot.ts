@@ -161,7 +161,7 @@ export const runPreDeploySnapshot = async ({
 		const filePath = `${snapshotDir}/${fileName}`;
 		const containerCmd = getServiceContainerCommand(db_.appName);
 		const dumpCmd = getMongoBackupCommand(
-			db_.databaseName,
+			db_.name,
 			db_.databaseUser,
 			db_.databasePassword,
 		);
@@ -173,16 +173,16 @@ export const runPreDeploySnapshot = async ({
 			);
 			results.push({
 				type: "mongo",
-				name: db_.databaseName,
+				name: db_.name,
 				path: filePath,
 				sizeHuman: size.trim() || "?",
 			});
 			await exec(
-				`echo "  ✅ mongo/${db_.databaseName} → ${fileName} (${size.trim()})" >> "${logPath}"`,
+				`echo "  ✅ mongo/${db_.name} → ${fileName} (${size.trim()})" >> "${logPath}"`,
 			);
 		} catch {
 			await exec(
-				`echo "  ⚠️  mongo/${db_.databaseName} snapshot failed (skipped)" >> "${logPath}"`,
+				`echo "  ⚠️  mongo/${db_.name} snapshot failed (skipped)" >> "${logPath}"`,
 			);
 		}
 	}
