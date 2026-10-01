@@ -297,9 +297,6 @@ export const HandleSchedules = ({ id, scheduleId, scheduleType }: Props) => {
 			...(scheduleType === "server" && {
 				serverId: id || "",
 			}),
-			...(scheduleType === "dokploy-server" && {
-				userId: id || "",
-			}),
 		})
 			.then(() => {
 				toast.success(

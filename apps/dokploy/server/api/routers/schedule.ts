@@ -17,6 +17,7 @@ import {
 	createSchedule,
 	deleteSchedule,
 	findScheduleById,
+	normalizeScheduleTarget,
 	updateSchedule,
 } from "@dokploy/server/services/schedule";
 import { findServerById } from "@dokploy/server/services/server";
@@ -31,7 +32,8 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 export const scheduleRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(createScheduleSchema)
-		.mutation(async ({ input, ctx }) => {
+		.mutation(async ({ input: rawInput, ctx }) => {
+			const input = normalizeScheduleTarget(rawInput);
 			await assertHostScheduleAccess(ctx, input.scheduleType, input.serverId);
 
 			const serviceId = input.applicationId || input.composeId;
@@ -90,14 +92,15 @@ export const scheduleRouter = createTRPCRouter({
 		.mutation(async ({ input, ctx }) => {
 			const existingSchedule = await findScheduleById(input.scheduleId);
 
+			// The target ids can't be updated, so a type change would leave the
+			// schedule pointing at the wrong (or no) resource.
 			if (
-				IS_CLOUD &&
 				input.scheduleType &&
 				input.scheduleType !== existingSchedule.scheduleType
 			) {
 				throw new TRPCError({
 					code: "FORBIDDEN",
-					message: "Changing scheduleType is not allowed in the cloud version.",
+					message: "Changing scheduleType is not allowed.",
 				});
 			}
 
@@ -105,17 +108,8 @@ export const scheduleRouter = createTRPCRouter({
 				ctx,
 				existingSchedule.scheduleType,
 				existingSchedule.serverId,
+				existingSchedule.organizationId,
 			);
-			if (
-				input.scheduleType &&
-				input.scheduleType !== existingSchedule.scheduleType
-			) {
-				await assertHostScheduleAccess(
-					ctx,
-					input.scheduleType,
-					input.serverId ?? existingSchedule.serverId,
-				);
-			}
 
 			const serviceId =
 				existingSchedule.applicationId || existingSchedule.composeId;
@@ -169,6 +163,7 @@ export const scheduleRouter = createTRPCRouter({
 				ctx,
 				scheduleItem.scheduleType,
 				scheduleItem.serverId,
+				scheduleItem.organizationId,
 			);
 
 			const serviceId = scheduleItem.applicationId || scheduleItem.composeId;
@@ -297,6 +292,15 @@ export const scheduleRouter = createTRPCRouter({
 			} else {
 				await checkPermission(ctx, { schedule: ["read"] });
 
+				if (schedule.scheduleType === "dokploy-server") {
+					await assertHostScheduleAccess(
+						ctx,
+						schedule.scheduleType,
+						schedule.serverId,
+						schedule.organizationId,
+					);
+				}
+
 				if (schedule.scheduleType === "server" && schedule.serverId) {
 					const targetServer = await findServerById(schedule.serverId);
 					if (
@@ -320,6 +324,7 @@ export const scheduleRouter = createTRPCRouter({
 				ctx,
 				scheduleItem.scheduleType,
 				scheduleItem.serverId,
+				scheduleItem.organizationId,
 			);
 
 			const serviceId = scheduleItem.applicationId || scheduleItem.composeId;

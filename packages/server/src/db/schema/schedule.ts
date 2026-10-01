@@ -79,10 +79,24 @@ export const schedulesRelations = relations(schedules, ({ one, many }) => ({
 	deployments: many(deployments),
 }));
 
+// appName is interpolated into shell commands and organizationId is derived from
+// the session, so neither may be supplied by the client.
 export const createScheduleSchema = createInsertSchema(schedules, {
 	scheduleType: z.enum(["application", "compose", "server", "dokploy-server"]),
+}).omit({
+	appName: true,
+	organizationId: true,
+	createdAt: true,
 });
 
-export const updateScheduleSchema = createScheduleSchema.extend({
-	scheduleId: z.string().min(1),
-});
+// The target of a schedule (service / server) is fixed after creation, otherwise
+// a schedule could be re-pointed at a resource the caller was never checked for.
+export const updateScheduleSchema = createScheduleSchema
+	.omit({
+		applicationId: true,
+		composeId: true,
+		serverId: true,
+	})
+	.extend({
+		scheduleId: z.string().min(1),
+	});
