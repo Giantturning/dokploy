@@ -24,6 +24,9 @@ export const assertHostScheduleAccess = async (
 	ctx: { user: { id: string }; session: { activeOrganizationId: string } },
 	scheduleType: Schedule["scheduleType"] | null | undefined,
 	serverId: string | null | undefined,
+	// Pass the stored organizationId when checking an existing schedule so
+	// host-level schedules of other organizations stay out of reach.
+	organizationId?: string | null,
 ) => {
 	if (scheduleType !== "server" && scheduleType !== "dokploy-server") return;
 
@@ -54,10 +57,54 @@ export const assertHostScheduleAccess = async (
 			});
 		}
 	}
+
+	if (
+		scheduleType === "dokploy-server" &&
+		organizationId !== undefined &&
+		organizationId !== ctx.session.activeOrganizationId
+	) {
+		throw new TRPCError({
+			code: "UNAUTHORIZED",
+			message: "You don't have access to this schedule.",
+		});
+	}
+};
+
+// Only keep the target id that matches the schedule type. Permission checks run
+// against that id, so a second, unchecked id (e.g. someone else's composeId next
+// to an accessible applicationId) must never reach the database.
+export const normalizeScheduleTarget = <
+	T extends z.infer<typeof createScheduleSchema>,
+>(
+	input: T,
+): T => {
+	const scheduleType = input.scheduleType ?? "application";
+	const target = {
+		applicationId: scheduleType === "application" ? input.applicationId : null,
+		composeId: scheduleType === "compose" ? input.composeId : null,
+		serverId: scheduleType === "server" ? input.serverId : null,
+	};
+	const required = {
+		application: target.applicationId,
+		compose: target.composeId,
+		server: target.serverId,
+		"dokploy-server": "host",
+	}[scheduleType];
+
+	if (!required) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: `A ${scheduleType} schedule needs a matching target id.`,
+		});
+	}
+
+	return { ...input, ...target, scheduleType };
 };
 
 export const createSchedule = async (
-	input: z.infer<typeof createScheduleSchema>,
+	input: z.infer<typeof createScheduleSchema> & {
+		organizationId?: string | null;
+	},
 ) => {
 	const { scheduleId, ...rest } = input;
 	const [newSchedule] = await db
